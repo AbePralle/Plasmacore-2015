@@ -130,7 +130,7 @@ class DataCompiler
         println "Data up to date."
       endIf
 
-    method copy_data( from_filepath:String, to_filepath:String, attr:Value )
+    method copy_data( from_filepath:String, to_filepath:String, attr:Variant )
       if (File(to_filepath) != File(from_filepath))
         File(to_filepath).parent.create_folder
 
@@ -173,7 +173,7 @@ class DataCompiler
         endIf
       endForEach
 
-    method data_attributes( filepath:String )->Value
+    method data_attributes( filepath:String )->Variant
       local result = @{}
 
       forEach (def in attributes)
@@ -324,7 +324,7 @@ class DataCommand
         throw error( ''Syntax error - expected "$", found [end of line].'' (text) )
       endIf
 
-    method parse_args->Value
+    method parse_args->Variant
       local args = @{}
       while (has_another)
         local arg = parse_name_value
@@ -333,7 +333,7 @@ class DataCommand
       endWhile
       return args
 
-    method parse_name_value->Value
+    method parse_name_value->Variant
       local name = parse_string( "Identifier or [end of line] expected." )
       local name_value = @{ name:name }
       consume_whitespace
@@ -374,7 +374,7 @@ class DataCommand
       endIf
       return buffer.cloned
 
-    method require_arg( args:Value, name:String  )
+    method require_arg( args:Variant, name:String  )
       if (not args.contains(name)) throw error( "Missing required argument '$'." (name) )
 
     method to->String

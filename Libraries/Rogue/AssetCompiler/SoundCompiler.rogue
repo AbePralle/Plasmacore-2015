@@ -125,7 +125,7 @@ class SoundCompiler
         println "Sounds up to date."
       endIf
 
-    method copy_sound( from_filepath:String, to_filepath:String, attr:Value )
+    method copy_sound( from_filepath:String, to_filepath:String, attr:Variant )
       local cur_ext = File( from_filepath ).extension
       local new_ext = cur_ext
       local format : String
@@ -204,7 +204,7 @@ class SoundCompiler
         endIf
       endForEach
 
-    method sound_attributes( filepath:String )->Value
+    method sound_attributes( filepath:String )->Variant
       local result = @{}
 
       forEach (def in attributes)
@@ -364,7 +364,7 @@ class SoundCommand
         throw error( ''Syntax error - expected "$", found [end of line].'' (text) )
       endIf
 
-    method parse_args->Value
+    method parse_args->Variant
       local args = @{}
       while (has_another)
         local arg = parse_name_value
@@ -373,7 +373,7 @@ class SoundCommand
       endWhile
       return args
 
-    method parse_name_value->Value
+    method parse_name_value->Variant
       local name = parse_string( "Identifier or [end of line] expected." )
       local name_value = @{ name:name }
       consume_whitespace
@@ -414,7 +414,7 @@ class SoundCommand
       endIf
       return buffer.cloned
 
-    method require_arg( args:Value, name:String  )
+    method require_arg( args:Variant, name:String  )
       if (not args.contains(name)) throw error( "Missing required argument '$'." (name) )
 
     method to->String

@@ -103,7 +103,7 @@ class ImageCompileError : Error
   PROPERTIES
     cmd      : ImageCommand
     filepath : String
-    line     : Int32
+    line     : Int
 
   METHODS
     method init( cmd, message )
@@ -143,7 +143,7 @@ class ImageCompiler
     standalone_images = @[]
     newest_manifest_timestamp : Real64
     even_odd          = true
-    files_written     : Int32
+    files_written     : Int
     all_images        : String[]
     showed_standalone_header : Logical
 
@@ -226,7 +226,7 @@ class ImageCommand
   PROPERTIES
     icom         : ImageCompiler
     src_filepath : String
-    src_line     : Int32
+    src_line     : Int
     content      : String
     reader       : Scanner
     buffer       = String()
@@ -280,7 +280,7 @@ class ImageCommand
       return ImageCompileError( this, message )
 
     method to_unicode( st:String )->Character
-      if (not st.begins_with('\'')) return st->Int32->Character
+      if (not st.begins_with('\'')) return st->Int->Character
       st = st.after_first('\'').before_last('\'')
       if (st.count == 0) return Character(0)
       if (st.count == 1 or st[0] != '\\') return st[0]
@@ -507,7 +507,7 @@ class ImageCommand
       local placements = Placement[]
       (forEach in assets).collect_placements( placements )
 
-      local max_w = which{ icom.settings//image_sheet_size->Int32 || 2048 }.to_power_of_2
+      local max_w = which{ icom.settings//image_sheet_size->Int || 2048 }.to_power_of_2
       local max_h = max_w
 
       local sheets = ImageSheet[]
@@ -532,7 +532,7 @@ class ImageCommand
 
       loop
         # Determine order of attempting w/2,h and w,h/2
-        local scale_1 = IntXY(0.5,1)
+        local scale_1 = XY(0.5,1)
         if (last_sheet.height >= last_sheet.width) scale_1 = scale_1.yx
         local scale_2 = scale_1.yx
 
@@ -562,7 +562,7 @@ class ImageCommand
 
       return sheets
 
-    method perform_layout( placements:Placement[], max_width:Int32, max_height:Int32 )->ImageSheet
+    method perform_layout( placements:Placement[], max_width:Int, max_height:Int )->ImageSheet
       placements.sort(
         function(a:Placement,b:Placement)->Logical
           # 'a' should come before 'b' when:
@@ -578,13 +578,13 @@ class ImageCommand
       if (perform_layout(placements, 0, 0, max_width, max_height, sheet)) return sheet
       else return null
 
-    method perform_layout( placements:Placement[], sx:Int32, sy:Int32, sw:Int32, sh:Int32, image_sheet:ImageSheet )->Logical
+    method perform_layout( placements:Placement[], sx:Int, sy:Int, sw:Int, sh:Int, image_sheet:ImageSheet )->Logical
       # Find the largest asset we can place (including a 1-pixel border around
       # the edge), delete it from the list, and then recursively place any
       # remaining placements we can.
       forEach (placement in placements)
-        local w = (placement.width  + 2)->Int32
-        local h = (placement.height + 2)->Int32
+        local w = (placement.width  + 2)->Int
+        local h = (placement.height + 2)->Int
         if (w <= sw and h <= sh)
           placement.x = sx+1
           placement.y = sy+1
@@ -612,13 +612,13 @@ class ImageCommand
     method create_asset_object( filepath:String )->Asset
       return Asset( this, filepath, get_attributes(filepath) )
 
-    method has_specific_attributes( filepath:String )->Value
+    method has_specific_attributes( filepath:String )->Variant
       forEach (attr in icom.attributes)
         if (attr//filepath == filepath) return true
       endForEach
       return false
 
-    method get_attributes( filepath:String )->Value
+    method get_attributes( filepath:String )->Variant
       local attributes = @{}
       forEach (attr in icom.attributes)
         if (FilePattern(attr//pattern->String).matches(filepath))
@@ -630,8 +630,8 @@ class ImageCommand
       endForEach
       return attributes
 
-    method set_attributes( filepath:String, attribute_table:Value )
-      local entry : Value
+    method set_attributes( filepath:String, attribute_table:Variant )
+      local entry : Variant
       block
         forEach (attr in icom.attributes)
           if (attr//filepath == filepath)  # look for exact filepath match
@@ -652,7 +652,7 @@ class ImageCommand
       consume_whitespace
       return (reader.has_another)
 
-    method create_image( image_name:String, args:Value )
+    method create_image( image_name:String, args:Variant )
       if (image_name.begins_with("Images/")) image_name = "Assets/" + image_name
       if (not image_name.begins_with("Assets/Images/")) image_name = "Assets/Images/" + image_name
 
@@ -662,7 +662,7 @@ class ImageCommand
       endIf
 
       local font_name = require_arg( args, "font" )->String
-      local height = require_arg( args, "height" )->Int32
+      local height = require_arg( args, "height" )->Int
 
       local is_monospace = false
       local is_monospace_numbers = false
@@ -678,12 +678,12 @@ class ImageCommand
         args//characters = buffer.cloned
       endIf
 
-      local unicode = Int32[]
+      local unicode = Int[]
       if (args.contains("characters"))
-        forEach (ch in args//characters->String) unicode.add( Int32(ch) )
+        forEach (ch in args//characters->String) unicode.add( Int(ch) )
       endIf
       if (args.contains("unicode"))
-        forEach (code in parse_unicode(args//unicode)) unicode.add( Int32(code) )
+        forEach (code in parse_unicode(args//unicode)) unicode.add( Int(code) )
       endIf
 
       # Remove duplicates
@@ -726,7 +726,7 @@ class ImageCommand
           local x = 0
           local y = (bmp.height - 5) + (bmp.height % 5) / 2
           while (y >= 0)
-            bmp.blit( IntBox(0,y,bmp.width,5), new_bmp, IntXY(x,y) )
+            bmp.blit( Box(0,y,bmp.width,5), new_bmp, XY(x,y) )
             ++x
             y -= 5
           endWhile
@@ -743,7 +743,7 @@ class ImageCommand
         forEach (ch at index in characters)
           if (ch.width != max_w)
             local new_ch = Bitmap( max_w, ch.height )
-            ch.blit( new_ch, IntXY((max_w-ch.width)/2,0) )
+            ch.blit( new_ch, XY((max_w-ch.width)/2,0) )
             characters[ index ] = new_ch
           endIf
         endForEach
@@ -758,7 +758,7 @@ class ImageCommand
           if (ch.width != max_w)
             if (unicode[index] == ' ' or unicode[index]->Character.is_number)
               local new_ch = Bitmap( max_w, ch.height )
-              ch.blit( new_ch, IntXY((max_w-ch.width)/2,0) )
+              ch.blit( new_ch, XY((max_w-ch.width)/2,0) )
               characters[ index ] = new_ch
             endIf
           endIf
@@ -883,7 +883,7 @@ class ImageCommand
 
       icom.standalone_images.add( info )
 
-    method copy_image( args:Value )
+    method copy_image( args:Variant )
       require_arg( args, "from" )
       require_arg( args, "to" )
       local from_filepath = args//from->String
@@ -926,7 +926,7 @@ class ImageCommand
         endContingent
       endForEach
 
-    method copy_image( from_filepath:String, to_filepath:String, args:Value )
+    method copy_image( from_filepath:String, to_filepath:String, args:Variant )
       local attributes = @{}
       forEach (attr in icom.attributes)
         if (FilePattern(attr//pattern->String).matches(from_filepath))
@@ -943,8 +943,8 @@ class ImageCommand
 
       local resize = false
       local fixed_resize = false
-      local from_size : IntXY
-      local to_size   : IntXY
+      local from_size : XY
+      local to_size   : XY
       if (args//resize)
         local resize_dims = args//resize->String.split( "->" )
         which (resize_dims.count)
@@ -1008,8 +1008,8 @@ class ImageCommand
           save_bitmap( bitmap, to_filepath )
 
         else
-          local new_w = (w * scale)->Int32
-          local new_h = (h * scale)->Int32
+          local new_w = (w * scale)->Int
+          local new_h = (h * scale)->Int
           if (resize)
             if (w == from_size.min and h == from_size.max)     new_w = to_size.min; new_h = to_size.max
             elseIf (w == from_size.max and h == from_size.min) new_w = to_size.max; new_h = to_size.min
@@ -1021,7 +1021,7 @@ class ImageCommand
         endIf
       endIf
 
-    method adjust_image( args:Value )
+    method adjust_image( args:Variant )
       local filepath = args//image->String
       if (filepath.begins_with("Images/")) filepath = "Assets/" + filepath
       if (not filepath.begins_with("Assets/Images/")) filepath = "Assets/Images/" + filepath
@@ -1040,7 +1040,7 @@ class ImageCommand
         endContingent
       endForEach
 
-    method adjust_image( filepath:String, args:Value )
+    method adjust_image( filepath:String, args:Variant )
       local attributes = @{}
       forEach (attr in icom.attributes)
         if (FilePattern(attr//pattern->String).matches(filepath))
@@ -1063,8 +1063,8 @@ class ImageCommand
       local resize = false
       local fixed_resize = false
       local crop = false
-      local from_size : IntXY
-      local to_size   : IntXY
+      local from_size : XY
+      local to_size   : XY
       if (args//resize)
         local resize_dims = args//resize->String.split( "->" )
         which (resize_dims.count)
@@ -1119,7 +1119,7 @@ class ImageCommand
             throw error( ''Illegal 'split' size of $x$ for "$".'' (tiles_wide,tiles_high,filepath) )
           endIf
           if (fixed_resize)
-            if (to_size == bitmap.size / IntXY(tiles_wide,tiles_high)) return
+            if (to_size == bitmap.size / XY(tiles_wide,tiles_high)) return
           endIf
           local tiles = Convert.bitmap_to_tiles( this, bitmap, tiles_wide, tiles_high )
           println save_message
@@ -1150,13 +1150,13 @@ class ImageCommand
           save_bitmap( result, filepath )
 
         else
-          local new_w = (w * scale)->Int32
-          local new_h = (h * scale)->Int32
+          local new_w = (w * scale)->Int
+          local new_h = (h * scale)->Int
           if (resize)
             if (w == from_size.min and h == from_size.max)     new_w = to_size.min; new_h = to_size.max
             elseIf (w == from_size.max and h == from_size.min) new_w = to_size.max; new_h = to_size.min
           endIf
-          if (bitmap.size == IntXY(new_w,new_h)) return
+          if (bitmap.size == XY(new_w,new_h)) return
           bitmap = bitmap.resized( new_w, new_h )
           println save_message
           println "  [$x$] -> [$x$]" (w,h,bitmap.width,bitmap.height)
@@ -1198,7 +1198,7 @@ class ImageCommand
         throw error( ''Syntax error - expected "$", found [end of line].'' (text) )
       endIf
 
-    method parse_args->Value
+    method parse_args->Variant
       local args = @{}
       while (has_another)
         local arg = parse_name_value
@@ -1211,7 +1211,7 @@ class ImageCommand
       endWhile
       return args
 
-    method parse_name_value->Value
+    method parse_name_value->Variant
       local name = parse_string( "Identifier or [end of line] expected." )
       local name_value = @{ name:name }
       consume_whitespace
@@ -1220,7 +1220,7 @@ class ImageCommand
       endIf
       return name_value
 
-    method unicode_range_to_list( range:String )->Value
+    method unicode_range_to_list( range:String )->Variant
       local parts = range.leftmost(-1).rightmost(-1).trimmed.replacing(',',' ').replacing("..","-").split(' ')
       local list = @[]
       forEach (part in parts)
@@ -1229,13 +1229,13 @@ class ImageCommand
           local last_st = part.after_first( '-' )
           if (first_st.count == 0) first_st = "0"
           if (last_st.count == 0)  last_st = "0"
-          local first_ch = which{ first_st.is_integer:first_st->Int32 || first_st[0]->Int32 }
-          local last_ch = which{ last_st.is_integer:last_st->Int32 || last_st[0]->Int32 }
+          local first_ch = which{ first_st.is_integer:first_st->Int || first_st[0]->Int }
+          local last_ch = which{ last_st.is_integer:last_st->Int || last_st[0]->Int }
           forEach (ch in first_ch..last_ch) list.add( ch )
         elseIf (part.is_integer)
-          list.add( part->Int32 )
+          list.add( part->Int )
         elseIf (part.count)
-          list.add( part[0]->Int32 )
+          list.add( part[0]->Int )
         endIf
       endForEach
       return list
@@ -1288,7 +1288,7 @@ class ImageCommand
       endIf
       return buffer.cloned
 
-    method require_arg( args:Value, name:String  )->Value
+    method require_arg( args:Variant, name:String  )->Variant
       if (not args.contains(name)) throw error( "Missing required argument '$'." (name) )
       return args[ name ]
 
@@ -1298,25 +1298,25 @@ endClass
 
 class Convert
   GLOBAL METHODS
-    method bitmap_to_tiles( cmd:ImageCommand, bitmap:Bitmap, tiles_wide:Int32, tiles_high:Int32 )->Bitmap[]
+    method bitmap_to_tiles( cmd:ImageCommand, bitmap:Bitmap, tiles_wide:Int, tiles_high:Int )->Bitmap[]
       local tiles = Bitmap[]
       local w = bitmap.width / tiles_wide
       local h = bitmap.height / tiles_high
       forEach (j in 0..<tiles_high)
         forEach (i in 0..<tiles_wide)
-          tiles.add( Bitmap(bitmap,IntBox(i*w,j*h,w,h)) )
+          tiles.add( Bitmap(bitmap,Box(i*w,j*h,w,h)) )
         endForEach
       endForEach
       return tiles
 
-    method tiles_to_bitmap( cmd:ImageCommand, tiles:Bitmap[], tiles_wide:Int32, tiles_high:Int32 )->Bitmap
+    method tiles_to_bitmap( cmd:ImageCommand, tiles:Bitmap[], tiles_wide:Int, tiles_high:Int )->Bitmap
       #require (tiles.count == tiles_wide * tiles_high)
       local w = tiles.first.width
       local h = tiles.first.height
       local bitmap = Bitmap( w*tiles_wide, h*tiles_high )
       forEach (j in 0..<tiles_high)
         forEach (i in 0..<tiles_wide)
-          tiles[ j*tiles_wide + i ].blit( bitmap, IntXY(i*w,j*h) )
+          tiles[ j*tiles_wide + i ].blit( bitmap, XY(i*w,j*h) )
         endForEach
       endForEach
       return bitmap
@@ -1331,7 +1331,7 @@ class Convert
         local color = bitmap.get( x1, 0 )
         local x_limit = x1 + 1
         while (x_limit < w and bitmap.get(x_limit,0) == color) ++x_limit
-        characters.add( Bitmap(bitmap,IntBox(x1,1,x_limit-x1,char_height)) )
+        characters.add( Bitmap(bitmap,Box(x1,1,x_limit-x1,char_height)) )
         x1 = x_limit
       endWhile
 
@@ -1346,21 +1346,21 @@ class Convert
       local x = 0
       forEach (ch in characters)
         local w = ch.width.clamped_low(1)
-        bitmap.fill( IntBox(x,0,w,1), color )
-        ch.blit( bitmap, IntXY(x,1) )
-        if (color == Color.RED) color = 0xFF00FF00
+        bitmap.fill( Box(x,0,w,1), color )
+        ch.blit( bitmap, XY(x,1) )
+        if (color == Color.RED) color = Color(0xFF00FF00)
         else                    color = Color.RED
         x += w
       endForEach
       return bitmap
 
-    method parse_dimensions( cmd:ImageCommand, text:String )->IntXY
+    method parse_dimensions( cmd:ImageCommand, text:String )->XY
       local dims = text.split( "x" )
       if (dims.count == 1)
-        local size = dims.first->Int32
-        return IntXY(size,size)
+        local size = dims.first->Int
+        return XY(size,size)
       else
-        return IntXY(dims[0]->Int32,dims[1]->Int32)
+        return XY(dims[0]->Int,dims[1]->Int)
       endIf
 
     method parse_scale( cmd:ImageCommand, text:String )->Real64
@@ -1376,7 +1376,7 @@ class Asset
   PROPERTIES
     cmd          : ImageCommand
     filepath     : String
-    attributes   : Value
+    attributes   : Variant
     placements   = Placement[]
     type         = "TextureImage"
 
@@ -1407,7 +1407,7 @@ class Asset
 
       endIf
 
-    method collect_image_info( image_list:Value )
+    method collect_image_info( image_list:Variant )
       local entry = @{ type:type, name:filepath.after_first("Assets/Images/") }
 
       which (type)
@@ -1421,7 +1421,7 @@ class Asset
         case "Font"
           if (attributes//snap) entry//snap = true
 
-          local spacing : Value
+          local spacing : Variant
           if (attributes//spacing) spacing = JSON.parse( attributes//spacing )
           else                     spacing = @{before:[],after:[]}
           if (spacing//before and spacing//before.is_string) spacing//before = @[ spacing//before ]
@@ -1461,7 +1461,7 @@ class Asset
           endIf
 
           local unicode = characters.reader
-          images.add( (forEach in placements).collect_image_info( @{ type:"TextureImage", unicode:unicode.read->Int32 } ) )
+          images.add( (forEach in placements).collect_image_info( @{ type:"TextureImage", unicode:unicode.read->Int } ) )
 
         others
           throw Error( "INTERNAL ERROR in Asset.collect_image_info(): Unhandled image type: " + type )
@@ -1478,13 +1478,13 @@ class Placement
   PROPERTIES
     asset          : Asset
     bitmap         : Bitmap
-    attributes     : Value
-    x              : Int32
-    y              : Int32
-    width          : Int32
-    height         : Int32
-    display_width  : Int32
-    display_height : Int32
+    attributes     : Variant
+    x              : Int
+    y              : Int
+    width          : Int
+    height         : Int
+    display_width  : Int
+    display_height : Int
     image_sheet    : ImageSheet
 
   METHODS
@@ -1523,7 +1523,7 @@ class Placement
         display_height = display_height * scale
       endIf
 
-    method collect_image_info( info:Value )->Value
+    method collect_image_info( info:Variant )->Variant
       info//display_size = @[ display_width, display_height ]
       info//texture =
       @{
@@ -1534,25 +1534,25 @@ class Placement
       return info
 
     method render( to_bitmap:Bitmap )
-      local pos  = IntXY( x, y )
-      local size = IntXY( bitmap.width, bitmap.height )
+      local pos  = XY( x, y )
+      local size = XY( bitmap.width, bitmap.height )
 
       bitmap.blit( to_bitmap, pos )
 
       # Extend each edge 1 pixel to prevent rendering artifacts
-      to_bitmap.blit( IntBox(pos,size.x,1),                to_bitmap, pos - IntXY(0,1) )  # top
-      to_bitmap.blit( IntBox(pos+IntXY(0,size.y-1),size.x,1), to_bitmap, pos + size.yv )  # bottom
+      to_bitmap.blit( Box(pos,size.x,1),                to_bitmap, pos - XY(0,1) )  # top
+      to_bitmap.blit( Box(pos+XY(0,size.y-1),size.x,1), to_bitmap, pos + size.yv )  # bottom
 
-      to_bitmap.blit( IntBox(pos-IntXY(0,1),1,size.y+2),         to_bitmap, pos-IntXY(1,1) )         # left
-      to_bitmap.blit( IntBox(pos+size.xv-IntXY(1,1),1,size.y+2), to_bitmap, pos+size.xv-IntXY(0,1) ) # right
+      to_bitmap.blit( Box(pos-XY(0,1),1,size.y+2),         to_bitmap, pos-XY(1,1) )         # left
+      to_bitmap.blit( Box(pos+size.xv-XY(1,1),1,size.y+2), to_bitmap, pos+size.xv-XY(0,1) ) # right
 endClass
 
 
 class ImageSheet
   PROPERTIES
     placements = Placement[]
-    width      : Int32
-    height     : Int32
+    width      : Int
+    height     : Int
     filename   : String
 
   METHODS
@@ -1567,8 +1567,8 @@ class ImageSheet
       (forEach in placements).render( bitmap )
       return bitmap
 
-    method size->IntXY
-      return IntXY( width, height )
+    method size->XY
+      return XY( width, height )
 
 endClass
 
@@ -1583,8 +1583,8 @@ class FreeTypeFace
     nativeCode @|FT_Library Plasmacore_freetype_library;
 
   PROPERTIES
-    pixel_height : Int32
-    ft_height    : Int32
+    pixel_height : Int
+    ft_height    : Int
     native "FT_Face ft_face;"
 
   METHODS
@@ -1598,17 +1598,17 @@ class FreeTypeFace
 
       if (not native("Plasmacore_freetype_library")->Logical)
         # Initialize FreeType library
-        if (native("FT_Init_FreeType(&Plasmacore_freetype_library)")->Int32)
+        if (native("FT_Init_FreeType(&Plasmacore_freetype_library)")->Int)
           throw ImageCompileError( cmd, "FreeType library failed to initialize." )
         endIf
         on_exit( () => native "FT_Done_FreeType( Plasmacore_freetype_library );" )
       endIf
 
-      if (native("FT_New_Face( Plasmacore_freetype_library, (char*)$filepath->data->as_utf8, 0, &$this->ft_face )")->Int32)
+      if (native("FT_New_Face( Plasmacore_freetype_library, (char*)$filepath->data->as_utf8, 0, &$this->ft_face )")->Int)
         throw ImageCompileError( cmd, "Error loading $." (name) )
       endIf
 
-    method render( unicode:Int32[] )->Bitmap[]
+    method render( unicode:Int[] )->Bitmap[]
       local max_offset = 0  # note: "max" values are more negative
 
       loop
@@ -1623,9 +1623,9 @@ class FreeTypeFace
           local max_height = 0
           max_offset = 0
           forEach (code in unicode)
-            if (0 == native("FT_Load_Char( $this->ft_face, $code, FT_LOAD_RENDER )")->Int32)
-              local h      = native( "(RogueInt32)$this->ft_face->glyph->bitmap.rows" )->Int32
-              local offset = native( "(RogueInt32)-$this->ft_face->glyph->bitmap_top" )->Int32
+            if (0 == native("FT_Load_Char( $this->ft_face, $code, FT_LOAD_RENDER )")->Int)
+              local h      = native( "(RogueInt)$this->ft_face->glyph->bitmap.rows" )->Int
+              local offset = native( "(RogueInt)-$this->ft_face->glyph->bitmap_top" )->Int
               max_height = max_height.or_larger( h )
               max_offset = max_offset.or_smaller( offset )
             endIf
@@ -1637,9 +1637,9 @@ class FreeTypeFace
           # offset and the max offset is taken into account, the adjusted height still does not
           # exceed our max height.
           forEach (code in unicode)
-            if (0 == native("FT_Load_Char( $this->ft_face, $code, FT_LOAD_RENDER )")->Int32)
-              local h      = native( "(RogueInt32)$this->ft_face->glyph->bitmap.rows" )->Int32
-              local offset = native( "(RogueInt32)-$this->ft_face->glyph->bitmap_top" )->Int32
+            if (0 == native("FT_Load_Char( $this->ft_face, $code, FT_LOAD_RENDER )")->Int)
+              local h      = native( "(RogueInt)$this->ft_face->glyph->bitmap.rows" )->Int
+              local offset = native( "(RogueInt)-$this->ft_face->glyph->bitmap_top" )->Int
               necessary (h + offset <= pixel_height + max_offset)
             endIf
           endForEach
@@ -1656,22 +1656,22 @@ class FreeTypeFace
       # Actually render character bitmaps.
       local bitmaps = Bitmap[]( unicode.count )
       forEach (code in unicode)
-        if (native("FT_Load_Char( $this->ft_face, $code, FT_LOAD_RENDER )")->Int32)
+        if (native("FT_Load_Char( $this->ft_face, $code, FT_LOAD_RENDER )")->Int)
           bitmaps.add( Bitmap(1,pixel_height,Color(0x00FFffFF)) )
         else
-          local w        = native( "(RogueInt32)$this->ft_face->glyph->bitmap.width" )->Int32
-          local h        = native( "(RogueInt32)$this->ft_face->glyph->bitmap.rows" )->Int32
-          local offset_x = native( "(RogueInt32)-$this->ft_face->glyph->bitmap_left" )->Int32
-          local offset_y = native( "(RogueInt32)-$this->ft_face->glyph->bitmap_top" )->Int32
-          local advance_x = native( "(RogueInt32)$this->ft_face->glyph->advance.x" )->Int32 / 64
-          #local advance_y = native( "(RogueInt32)$this->ft_face->glyph->advance.y" )->Int32 / 64
+          local w        = native( "(RogueInt)$this->ft_face->glyph->bitmap.width" )->Int
+          local h        = native( "(RogueInt)$this->ft_face->glyph->bitmap.rows" )->Int
+          local offset_x = native( "(RogueInt)-$this->ft_face->glyph->bitmap_left" )->Int
+          local offset_y = native( "(RogueInt)-$this->ft_face->glyph->bitmap_top" )->Int
+          local advance_x = native( "(RogueInt)$this->ft_face->glyph->advance.x" )->Int / 64
+          #local advance_y = native( "(RogueInt)$this->ft_face->glyph->advance.y" )->Int / 64
           if ((offset_y - max_offset) + h > pixel_height)
             trace "ERROR: font character exceeds max height."
             h = pixel_height - (offset_y - max_offset)
           endIf
 
           if (w > 0)
-            local pitch = native( "(RogueInt32)$this->ft_face->glyph->bitmap.pitch" )->Int32
+            local pitch = native( "(RogueInt)$this->ft_face->glyph->bitmap.pitch" )->Int
             native "RogueByte* src = (RogueByte*) $this->ft_face->glyph->bitmap.buffer;"
             local bmp = Bitmap( w, pixel_height, Color(0x00FFffFF) )
             local src_i = 0
@@ -1679,7 +1679,7 @@ class FreeTypeFace
             local column_skip = pitch - w
             forEach (j in 1..h)
               forEach (i in 1..w)
-                local a = native( "(RogueInt32)(src[$src_i++])" )->Int32
+                local a = native( "(RogueInt)(src[$src_i++])" )->Int
                 bmp.pixels[dest_i] = Color(255,255,255,a)
                 ++dest_i
               endForEach
@@ -1687,7 +1687,7 @@ class FreeTypeFace
             endForEach
             if (advance_x > w)
               local padded_bmp = Bitmap( advance_x, pixel_height, Color(0x00FFffFF) )
-              bmp.blit( padded_bmp, IntXY(-offset_x,0) )
+              bmp.blit( padded_bmp, XY(-offset_x,0) )
               bitmaps.add( padded_bmp )
             else
               bitmaps.add( bmp )
